@@ -6,8 +6,8 @@ import numpy as np
 import ntpath
 import sh
 import time
-from wav2vec_featurize import EmbeddingDatasetWriter
-from wav2vec_featurize import Prediction
+from wav2vec import EmbeddingDatasetWriter
+from wav2vec import Prediction
 from utils import absoluteFilePaths, convert_to_16k
 from utils import silenceRemovalWrapper, chunk_audio, read_result
 from pydub import AudioSegment
@@ -78,9 +78,10 @@ class Transcriber:
         process.kill()
         return ' '.join(cmd)
         
-    def transcribe(self, wav_files):
+    def transcribe(self,wav_files):
+        
         start = time.time()
-        self.pool.map(preprocessing, [(wav_files[i], i, self.output_path) for i in range(0, len(wav_files))])
+        self.pool.map(preprocessing, [(wav_files[i], i, self.output_path) for i in range(0,len(wav_files))])
         print("Preprocessing: ", time.time() - start)
         start = time.time()
         
@@ -88,7 +89,7 @@ class Transcriber:
         featureWritter = EmbeddingDatasetWriter(input_root = self.output_path,
                                                 output_root = self.output_path,
                                                 loaded_model = self.w2vec, 
-                                                extension="wav", use_feat=False)
+                                                extension="wav",use_feat=False)
         featureWritter.write_features()
 
         print("Feature extraction: ", time.time() - start)
@@ -99,7 +100,7 @@ class Transcriber:
         paths = [p for p in paths if '.h5context' in p]
         lines = []
         for p in paths:
-            file_name = ntpath.basename(p).replace('.h5context', '')
+            file_name = ntpath.basename(p).replace('.h5context','')
             lines.append('\t'.join([file_name, p, '5', 'anh em']))
 
         with open(os.path.join(self.output_path, 'test.lst'),'w') as f:

@@ -11,13 +11,11 @@ import tqdm
 
 from fairseq.models.wav2vec import Wav2VecModel
 
-
 def read_audio(fname):
     """ Load an audio file and return PCM along with the sample rate """
     wav, sr = sf.read(fname)
     assert sr == 16e3
     return wav, 16e3
-
 
 class PretrainedWav2VecModel(nn.Module):
 
@@ -58,7 +56,6 @@ class Prediction():
             z, c = self.model(x.unsqueeze(0))
 
         return z.squeeze(0).cpu().numpy(), c.squeeze(0).cpu().numpy()
-
 
 class H5Writer():
     """ Write features as hdf5 file in wav2letter++ compatible format """
