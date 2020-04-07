@@ -213,11 +213,8 @@ class EmbeddingDatasetWriter(object):
 
 
 if __name__ == "__main__":
-
     args = EmbeddingWriterConfig().parse_args()
-
     for split in args.split:
-
         writer = EmbeddingDatasetWriter(
             input_root=args.input,
             output_root=args.output,
@@ -227,7 +224,6 @@ if __name__ == "__main__":
             extension=args.ext,
             use_feat=args.use_feat,
         )
-
         print(writer)
         writer.require_output_path()
 
