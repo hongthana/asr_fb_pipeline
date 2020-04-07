@@ -17,20 +17,21 @@ def findtranscriptfiles(dir):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Librispeech Dataset creation.")
-    parser.add_argument("--wav_dir", default='/home/psc/Desktop/code/asr/data/aishell_v1/data_aishell/wav', help="source directory")
-    parser.add_argument("--vec_dir", default='/home/psc/Desktop/code/asr/data/aishell_v1/data_aishell/vec', help="destination directory")
+    parser.add_argument("--base_dir", default='/home/psc/Desktop/code/asr/data/aishell_v1/data_aishell', help="source directory")
     parser.add_argument("--dst", default='output', help="destination directory")
     args = parser.parse_args()
 
-    assert os.path.isdir(str(args.wav_dir)), "aishell wav_dir directory not found - '{d}'".format(d=args.wav_dir)
-    assert os.path.isdir(str(args.vec_dir)), "aishell vec_dir directory not found - '{d}'".format(d=args.vec_dir)
+    wav_dir = os.path.join(args.base_dir, "wav")
+    vec_dir = os.path.join(args.base_dir, "vec")
+    assert os.path.isdir(str(wav_dir)), "aishell wav_dir directory not found - '{d}'".format(d=wav_dir)
+    assert os.path.isdir(str(vec_dir)), "aishell vec_dir directory not found - '{d}'".format(d=vec_dir)
     os.makedirs(args.dst, exist_ok=True)
     lists_dst = os.path.join(args.dst, "lists")
     os.makedirs(lists_dst, exist_ok=True)
     am_dst = os.path.join(args.dst, "am")
     os.makedirs(am_dst, exist_ok=True)
 
-    transcriptfile = os.path.join(os.path.dirname(args.wav_dir), "transcript/aishell_transcript_v0.8.txt")
+    transcriptfile = os.path.join(args.base_dir, "transcript/aishell_transcript_v0.8.txt")
     transcripts_dict = {}
     all_chars = []
     with open(transcriptfile, "r") as fr:
@@ -43,8 +44,8 @@ if __name__ == "__main__":
     train_dev_words = {}
     subpaths = ["train", "dev", "test"]
     for subpath in subpaths:
-        cur_wav_dir = os.path.join(args.wav_dir, subpath)
-        cur_vec_dir = os.path.join(args.vec_dir, subpath)
+        cur_wav_dir = os.path.join(wav_dir, subpath)
+        cur_vec_dir = os.path.join(vec_dir, subpath)
 
         assert os.path.exists(cur_wav_dir), "Unable to find the directory - '{src}'".format(src=cur_wav_dir)
         dst = os.path.join(lists_dst, subpath + ".lst")
