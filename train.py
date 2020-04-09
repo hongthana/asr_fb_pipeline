@@ -16,72 +16,58 @@ import re
 from shutil import copy2
 from utils import normalize, absoluteFilePaths
 
+
 def convert_to_16k(path):
     in_path = path
     out_path = os.path.dirname(path)
     file_name = ntpath.basename(in_path)
     y, s = librosa.load(in_path, sr=16000)
     y_16k = librosa.resample(y, s, 16000)
-    path_to_write = os.path.join(out_path,file_name)
+    path_to_write = os.path.join(out_path, file_name)
     sf.write(path_to_write, y_16k, 16000, format='WAV', subtype='PCM_16')
 
+
 def main():
-    
     parser = argparse.ArgumentParser()
+    parser.add_argument("--train_file", default="data/lists/train.lst", type=str, help="Path to train file, eg. train.lst")
     
-    parser.add_argument("--train_file", default=None, type=str,
-                        required=True, help="Path to train file, eg. train.lst")
+    parser.add_argument("--test_file", default="data/lists/test.lst", type=str, help="Path to test file, eg. test.lst")
     
-    parser.add_argument("--test_file", default=None, type=str,
-                        required=True, help="Path to test file, eg. test.lst")
+    parser.add_argument("--audio_path", default="/home/psc/Desktop/code/asr/data/aishell_v1/data_aishell/wav", type=str, help="Path to wav files, eg. audio")
     
-    parser.add_argument("--audio_path", default=None, type=str,
-                        required=True, help="Path to wav files, eg. audio")
+    parser.add_argument("--wav2vec_file", default="resources/wav2vec_self.pt", type=str, help="Path to wav2vec model")
     
-    parser.add_argument("--wav2vec_file", default=None, required=True,
-                        type=str,help="Path to wav2vec model, check in resources/wav2vec.pt")
+    parser.add_argument("--wav2letter", default="../wav2letter", type=str, help="Path to wav2letter library")
     
-    parser.add_argument("--wav2letter", default=None, type=str,
-                        required=True, help="Path to wav2letter library")
+    parser.add_argument("--am_file", default=None, type=str, help="Path to base aucostic model. If this is not given --> Training from scratch")
     
-    parser.add_argument("--am_file", default=None, type=str,
-                        help="Path to base aucostic model. If this is not given --> Training from scratch")
+    parser.add_argument("--arch_file", default="resources/network.arch", type=str, help="Path to archtecture file")
     
-    parser.add_argument("--arch_file", default=None, type=str,
-                        required=True, help="Path to archtecture file, check in resources/network.arch")
+    parser.add_argument("--token_file", default="data/am/tokens.txt", type=str, help="Path to token file")
     
-    parser.add_argument("--token_file", default=None, type=str,
-                        required=True, help="Path to token file, check in resources/tokens.txt")
+    parser.add_argument("--lexicon_file", default="data/am/lexicon.txt", type=str, help="Path to lexicon file")
     
-    parser.add_argument("--lexicon_file", default=None, type=str,
-                        required=True, help="Path to lexicon file, check in resources/lexicon.txt")
+    parser.add_argument("--output_path", default="output", type=str, help="Output path for storing feature and model")
     
-    parser.add_argument("--output_path", default=None, type=str,
-                        required=True, help="Output path for storing feature and model")
-    
-    parser.add_argument("--mode", default=None, type=str, required=True, 
+    parser.add_argument("--mode", default="scratch", type=str,
                         help="Either 'finetune' or 'scratch'" 
                              "If scratch  --> train AM from scratch"
                              "If finetune --> continue training using AM provided by arch_file")
     
-    parser.add_argument("--iter", default=50, type=int,
-                        help="Number of interations. Set this number higher if training from scratch")
+    parser.add_argument("--iter", default=100, type=int, help="Number of interations. Set this number higher if training from scratch")
     
-    parser.add_argument("--lr", default=0.5, type=float,
-                        help="Learning rate, set 1.0 for training from scratch and 0.5 for fine-tunning")
+    parser.add_argument("--lr", default=1.0, type=float, help="Learning rate, set 1.0 for training from scratch and 0.5 for fine-tunning")
     
-    parser.add_argument("--lrcrit", default=0.004, type=float,
-                        help="Learning rate crit, set 0.006 for training from scratch and 0.001 for fine-tunning ")
+    parser.add_argument("--lrcrit", default=0.006, type=float, help="Learning rate crit, set 0.006 for training from scratch and 0.001 for fine-tunning ")
     
     parser.add_argument("--momentum", default=0.5, type=float,help="SGD momentum")
     
     parser.add_argument("--maxgradnorm", default=0.05, type=float,help="Max gradnorm")
     
     parser.add_argument("--nthread", default=1, type=int,help="Number of jobs")
-    
     args = parser.parse_args()
     
-    if args.mode not in ['scratch','finetune']:
+    if args.mode not in ['scratch', 'finetune']:
         raise ValueError('Training mode must be either scratch or finetune')
     
     if args.mode == 'finetune' and args.am_file == None:
@@ -97,33 +83,32 @@ def main():
     print("Converting to 16k !!!")
     audio_names = absoluteFilePaths(args.audio_path)
     pool = Pool(4)
-    pool.map(convert_to_16k,audio_names)
+    pool.map(convert_to_16k, audio_names)
     pool.terminate()
 
     w2vec = Prediction(args.wav2vec_file)
 
     #Extract wav2vec feature
-    featureWritter = EmbeddingDatasetWriter(input_root = args.audio_path,
-                                            output_root = os.path.join(args.output_path,'feature'),
-                                            loaded_model = w2vec, 
-                                            extension="wav",use_feat=False)
+    feature_path = os.path.join(args.output_path, 'feature')
+    featureWritter = EmbeddingDatasetWriter(input_root=args.audio_path,
+                                            output_root=feature_path,
+                                            loaded_model=w2vec,
+                                            extension="wav", use_feat=False)
     featureWritter.write_features()
 
-    #Write train file
-    feature_path = os.path.join(args.output_path,'feature')
-
+    # Write train file
     with open(args.train_file) as f:
         data = f.read().split('\n')
         data = [t for t in data if len(t) > 1]
         data = [d.split('\t') for d in data]
 
-    for i in range(0,len(data)):
+    for i in range(0, len(data)):
         path = os.path.join(args.audio_path, data[i][0])
         text = normalize(data[i][1])
         audio = AudioSegment.from_wav(path)
-        path = os.path.join(feature_path,ntpath.basename(path))
+        path = os.path.join(feature_path, ntpath.basename(path))
         path = os.path.abspath(path)
-        path = path.replace('.wav','.h5context')
+        path = path.replace('.wav', '.h5context')
         leng = str(len(audio) / 1000.0)
         idx = 'train' + str(i)
         data[i] = '\t'.join([idx, path, leng, text])
@@ -132,19 +117,19 @@ def main():
     with open(train_feature_file, 'w') as f:
         f.write('\n'.join(data))
 
-    #Write test file
+    # Write test file
     with open(args.test_file) as f:
         data = f.read().split('\n')
         data = [t for t in data if len(t) > 1]
         data = [d.split('\t') for d in data]
 
-    for i in range(0,len(data)):
+    for i in range(0, len(data)):
         path = os.path.join(args.audio_path, data[i][0])
         text = normalize(data[i][1])
         audio = AudioSegment.from_wav(path)
         path = os.path.join(feature_path,ntpath.basename(path))
         path = os.path.abspath(path)
-        path = path.replace('.wav','.h5context')
+        path = path.replace('.wav', '.h5context')
         leng = str(len(audio) / 1000.0)
         idx = 'test' + str(i)
         data[i] = '\t'.join([idx, path, leng, text])
@@ -191,11 +176,11 @@ def main():
     cmd.append('--enable_distributed=false')
     
     cfg_path = os.path.join(args.output_path, 'fork_vec.cfg')
-    with open(cfg_path,'w') as f:
+    with open(cfg_path, 'w') as f:
         f.write('\n'.join(cmd))
     
     cmd = ['sudo']
-    cmd.append(os.path.join(args.wav2letter,'build/Train'))
+    cmd.append(os.path.join(args.wav2letter, 'build/Train'))
     
     if args.mode == 'finetune':
         cmd.append('fork ' + abspath(args.am_file))
@@ -210,10 +195,10 @@ def main():
     
     path_to_model = os.path.join(args.output_path, 'model/001_model_' + test_feature_file.replace('/','#') + '.bin')
     path_to_write = os.path.join(args.output_path, 'am.bin')
-    copy2(path_to_model,path_to_write)
+    copy2(path_to_model, path_to_write)
     
-    os.system('sudo rm -rf ' + os.path.join(args.output_path,'model'))
-    shutil.rmtree(os.path.join(args.output_path,'feature'), ignore_errors=True)
+    os.system('sudo rm -rf ' + os.path.join(args.output_path, 'model'))
+    shutil.rmtree(os.path.join(args.output_path, 'feature'), ignore_errors=True)
     os.remove(test_feature_file)
     os.remove(train_feature_file)
     os.remove(cfg_path)
