@@ -20,7 +20,8 @@ if __name__ == "__main__":
             for line in fr:
                 sp_id, vec_path, cur_len, cur_trans = line.strip().split("\t")
                 wav_path = vec_path.replace(".h5context", ".wav")
-                new_wav_path = os.path.dirname(wav_path).replace("/vec/", "/wav/") + '/' + sp_id + '/' + os.path.basename(wav_path)
+                folder_name = sp_id.split("-")[1]
+                new_wav_path = os.path.dirname(wav_path).replace("/vec/", "/wav/") + '/' + folder_name + '/' + os.path.basename(wav_path)
                 if not os.path.exists(new_wav_path):
                     print(new_wav_path, " is not exist")
                     continue
