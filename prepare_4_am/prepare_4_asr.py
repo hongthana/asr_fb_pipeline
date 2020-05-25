@@ -98,7 +98,7 @@ if __name__ == "__main__":
             f.write(w)
             f.write("\t")
             f.write(" ".join(w))
-            f.write(" |\n")
+            f.write(" \n")
     sys.stdout.write("Done !\n")
 
 
